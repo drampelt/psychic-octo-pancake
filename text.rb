@@ -12,7 +12,7 @@ class Text
 				convert.gravity "center"
 				convert.pointsize "144"
 				convert << "label: #{phrase[i]}"
-				convert << "output_#{i.to_s.rjust(3, '0')}.png"
+				convert << "out_#{(i + 30).to_s.rjust(3, '0')}.png"
 			end
 		end
 	end

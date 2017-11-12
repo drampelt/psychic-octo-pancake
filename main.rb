@@ -64,7 +64,7 @@ class Main
       convert << front
       convert.background 'white'
       convert.virtual_pixel 'white'
-      # convert.distort 'SRT', '0,0 1,1 0 772,600'
+      convert.distort 'SRT', '0,0 1,1 0 772,300'
       convert.distort 'Perspective', front_perspective
       # convert.stack do |stack|
       #   stack << back
@@ -94,11 +94,24 @@ end
 m = Main.new ARGV[0], ARGV[1]
 
 
-a = 60
-Parallel.each(a.times, progress: 'Generating frames') do |i|
-  p = (Math::PI/2 - i * Math::PI / 30).abs
-  m.generate_frame i + 60, 0, p, 0
+a = 30
+Parallel.each(a.times, progress: 'Generating frames A', in_threads: 8) do |i|
+  p = (Math::PI/2 - i * Math::PI / 50).abs
+  m.generate_frame i, 0, p, 0
 end
+
+b = 30
+Parallel.each(b.times, progress: 'Generating frames B', in_threads: 8) do |i|
+  p = (Math::PI/2 - i * Math::PI / 30).abs
+  m.generate_frame i + 13 + a, p, 0, 0
+end
+
+c = 30
+Parallel.each(c.times, progress: 'Generating frames C', in_threads: 8) do |i|
+  p = (Math::PI/2 - i * Math::PI / 30).abs
+  m.generate_frame i + 13 + a + b, 0, (Math::PI/2 - i * Math::PI / 40).abs, p
+end
+
 # 40.times do |i|
 # end
 # m.generate_frame 0, 0, 0, 3 * Math::PI / 4
