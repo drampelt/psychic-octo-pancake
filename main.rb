@@ -2,17 +2,18 @@ require 'mini_magick'
 require 'matrix'
 
 class Main
-  def initialize
-    image = MiniMagick::Image.open('x.png')
-    matrix = generate_rotation_matrix 0, 0, Math::PI / 4
-    corners = [Vector[0, 0, 0], Vector[image.width.to_i, 0, 0], Vector[image.width.to_i, image.height.to_i, 0], Vector[0, image.height.to_i, 0]]
+  def initialize(input)
+    image = MiniMagick::Image.open(input)
+    matrix = generate_rotation_matrix Math::PI / 4, Math::PI / 4, Math::PI / 4
+    corners = [Vector[0, 0], Vector[image.width.to_i, 0], Vector[image.width.to_i, image.height.to_i], Vector[0, image.height.to_i]]
     projected_corners = corners.map do |corner|
-      rotated = matrix * corner
-      project_2d rotated, 1920/2, 1080/2, 3000
+      c2 = Vector[corner[0], corner[1], 0]
+      rotated = matrix * c2
+      project_2d rotated, image.width / 2, image.height / 2, 3000
     end
 
-    perspective = corners.zip(projected_corners).map { |pair| "#{pair[0].to_a.join ','},#{pair[1].to_a.join ','}" }.join(' ')
-    convert 'x.png', 'out.png', perspective
+    perspective = corners.zip(projected_corners).map { |pair| "#{pair[0].to_a.map(&:round).join ','},#{pair[1].to_a.map(&:round).join ','}" }.join(' ')
+    convert input, 'out.png', perspective
   end
 
   def generate_rotation_matrix(yaw, pitch, roll)
@@ -35,7 +36,7 @@ class Main
   def convert(input, output, perspective)
     MiniMagick::Tool::Convert.new do |convert|
       convert << input
-      convert.extent '4096x4096'
+      convert.extent '1920x1080'
       convert.distort 'Perspective', perspective
       convert << output
     end
@@ -52,4 +53,4 @@ class Main
   end
 end
 
-Main.new
+Main.new ARGV[0]
