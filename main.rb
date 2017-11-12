@@ -1,19 +1,36 @@
 require 'mini_magick'
 require 'matrix'
+require 'parallel'
 
 class Main
-  def initialize(input)
-    image = MiniMagick::Image.open(input)
-    matrix = generate_rotation_matrix Math::PI / 4, Math::PI / 4, Math::PI / 4
-    corners = [Vector[0, 0], Vector[image.width.to_i, 0], Vector[image.width.to_i, image.height.to_i], Vector[0, image.height.to_i]]
-    projected_corners = corners.map do |corner|
-      c2 = Vector[corner[0], corner[1], 0]
-      rotated = matrix * c2
-      project_2d rotated, image.width / 2, image.height / 2, 3000
-    end
+  def initialize(front, back)
+    @front = front
+    @back = back
+    @front_image = MiniMagick::Image.open(front)
+    @back_image = MiniMagick::Image.open(back)
+  end
 
-    perspective = corners.zip(projected_corners).map { |pair| "#{pair[0].to_a.map(&:round).join ','},#{pair[1].to_a.map(&:round).join ','}" }.join(' ')
-    convert input, 'out.png', perspective
+  def generate_frame(i, yaw, pitch, roll)
+    front_matrix = generate_rotation_matrix yaw, pitch, roll
+    front_corners = [Vector[0, 0], Vector[@front_image.width.to_i, 0], Vector[@front_image.width.to_i, @front_image.height.to_i], Vector[0, @front_image.height.to_i]]
+    front_projected_corners = front_corners.map do |corner|
+      c2 = Vector[corner[0], corner[1], 0]
+      rotated = front_matrix * c2
+      project_2d rotated, @front_image.width / 2, @front_image.height / 2, 3000
+    end
+    front_perspective = front_corners.zip(front_projected_corners).map { |pair| "#{pair[0].to_a.map(&:round).join ','},#{pair[1].to_a.map(&:round).join ','}" }.join(' ')
+
+    # x = Math::PI / 4
+    back_matrix = generate_rotation_matrix yaw, pitch, roll - Math::PI
+    back_corners = [Vector[0, 0], Vector[@back_image.width.to_i, 0], Vector[@back_image.width.to_i, @back_image.height.to_i], Vector[0, @back_image.height.to_i]]
+    back_projected_corners = back_corners.map do |corner|
+      c2 = Vector[corner[0], corner[1], 0]
+      rotated = back_matrix * c2
+      project_2d rotated, @back_image.width / 2, @back_image.height / 2, 3000
+    end
+    back_perspective = back_corners.zip(back_projected_corners).map { |pair| "#{pair[0].to_a.map(&:round).join ','},#{pair[1].to_a.map(&:round).join ','}" }.join(' ')
+
+    convert @front, @back, "out_#{i.to_s.rjust(3, '0')}.png", front_perspective, back_perspective
   end
 
   def generate_rotation_matrix(yaw, pitch, roll)
@@ -33,11 +50,27 @@ class Main
     Vector[sx, sy]
   end
 
-  def convert(input, output, perspective)
+  def convert(front, back, output, front_perspective, back_perspective)
     MiniMagick::Tool::Convert.new do |convert|
-      convert << input
+      # convert << input
       convert.extent '1920x1080'
-      convert.distort 'Perspective', perspective
+      # convert.background 'white'
+      convert.stack do |stack|
+        stack << front
+        stack.alpha 'set'
+        stack.virtual_pixel 'white'
+        stack.distort 'Perspective', front_perspective
+      end
+      # convert.stack do |stack|
+      #   stack << back
+      #   stack.alpha 'set'
+      #   stack.virtual_pixel 'transparent'
+      #   stack.distort 'Perspective', back_perspective
+      # end
+      # convert.compose 'plus'
+      convert.layers 'merge'
+      # convert.repage.+
+      # convert.compose 'over'
       convert << output
     end
   end
@@ -53,4 +86,11 @@ class Main
   end
 end
 
-Main.new ARGV[0]
+m = Main.new ARGV[0], ARGV[1]
+
+Parallel.each(40.times, progress: 'Generating frames') do |i|
+  m.generate_frame i, (i * Math::PI / 60), (i * Math::PI / 30), (i * Math::PI / 30)
+end
+# 40.times do |i|
+# end
+# m.generate_frame 0, 0, 0, 3 * Math::PI / 4
