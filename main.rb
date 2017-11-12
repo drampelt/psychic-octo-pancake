@@ -54,13 +54,18 @@ class Main
     MiniMagick::Tool::Convert.new do |convert|
       # convert << input
       convert.extent '1920x1080'
-      # convert.background 'white'
-      convert.stack do |stack|
-        stack << front
-        stack.alpha 'set'
-        stack.virtual_pixel 'white'
-        stack.distort 'Perspective', front_perspective
-      end
+      convert.background 'white'
+      # convert.stack do |stack|
+      #   stack << front
+      #   stack.background 'white'
+      #   stack.virtual_pixel 'white'
+      #   stack.distort 'Perspective', front_perspective
+      # end
+      convert << front
+      convert.background 'white'
+      convert.virtual_pixel 'white'
+      # convert.distort 'SRT', '0,0 1,1 0 772,600'
+      convert.distort 'Perspective', front_perspective
       # convert.stack do |stack|
       #   stack << back
       #   stack.alpha 'set'
@@ -68,7 +73,7 @@ class Main
       #   stack.distort 'Perspective', back_perspective
       # end
       # convert.compose 'plus'
-      convert.layers 'merge'
+      # convert.layers 'merge'
       # convert.repage.+
       # convert.compose 'over'
       convert << output
@@ -88,8 +93,11 @@ end
 
 m = Main.new ARGV[0], ARGV[1]
 
-Parallel.each(40.times, progress: 'Generating frames') do |i|
-  m.generate_frame i, (i * Math::PI / 60), (i * Math::PI / 30), (i * Math::PI / 30)
+
+a = 60
+Parallel.each(a.times, progress: 'Generating frames') do |i|
+  p = (Math::PI/2 - i * Math::PI / 30).abs
+  m.generate_frame i + 60, 0, p, 0
 end
 # 40.times do |i|
 # end
